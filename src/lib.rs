@@ -17,6 +17,7 @@ pub struct State {
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
     window: Arc<Window>,
+    cursor_position: (f64, f64),
 }
 
 impl State {
@@ -81,6 +82,7 @@ impl State {
             config,
             is_surface_configured: false,
             window,
+            cursor_position: (0., 0.),
         })
     }
 
@@ -120,8 +122,14 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
+                            r: 0.1
+                                + (self.cursor_position.0 as f64 / self.config.width as f64)
+                                    .clamp(0.0, 1.0)
+                                    * (1.0 - 0.1),
+                            g: 0.1
+                                + (self.cursor_position.1 as f64 / self.config.height as f64)
+                                    .clamp(0.0, 1.0)
+                                    * (1.0 - 0.1),
                             b: 0.3,
                             a: 1.0,
                         }),
@@ -257,7 +265,7 @@ impl ApplicationHandler<State> for App {
             WindowEvent::RedrawRequested => {
                 state.update();
                 match state.render() {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         let size = state.window.inner_size();
                         state.resize(size.width, size.height);
@@ -266,6 +274,9 @@ impl ApplicationHandler<State> for App {
                         log::error!("Unable to render {}", e);
                     }
                 }
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                state.cursor_position = (position.x, position.y)
             }
             _ => {}
         }
