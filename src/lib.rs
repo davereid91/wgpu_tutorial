@@ -18,7 +18,8 @@ pub struct State {
     is_surface_configured: bool,
     window: Arc<Window>,
     cursor_position: (f64, f64),
-    render_pipeline: wgpu::RenderPipeline,
+    active_pipeline: usize,
+    render_pipelines: Vec<wgpu::RenderPipeline>,
 }
 
 impl State {
@@ -79,11 +80,12 @@ impl State {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
-        let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render pipeline layout"),
-            bind_group_layouts: &[],
-            immediate_size: 0
-        });
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render pipeline layout"),
+                bind_group_layouts: &[],
+                immediate_size: 0,
+            });
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render pipeline"),
             layout: Some(&render_pipeline_layout),
@@ -91,7 +93,7 @@ impl State {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[]
+                buffers: &[],
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -100,13 +102,13 @@ impl State {
                 cull_mode: Some(wgpu::Face::Back),
                 unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
-                conservative: false
+                conservative: false,
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
-                alpha_to_coverage_enabled: false
+                alpha_to_coverage_enabled: false,
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -115,12 +117,51 @@ impl State {
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
                     blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL
-                })]
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
             }),
             multiview_mask: None,
-            cache: None
+            cache: None,
         });
+
+        let render_pipeline_two = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render pipeline two"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                buffers: &[],
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main_two"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview_mask: None,
+            cache: None,
+        });
+        let render_pipelines = vec![render_pipeline, render_pipeline_two];
 
         Ok(Self {
             surface,
@@ -130,7 +171,8 @@ impl State {
             is_surface_configured: false,
             window,
             cursor_position: (0., 0.),
-            render_pipeline
+            active_pipeline: 0,
+            render_pipelines,
         })
     }
 
@@ -190,7 +232,7 @@ impl State {
                 multiview_mask: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(&self.render_pipelines[self.active_pipeline]);
             render_pass.draw(0..3, 0..1);
         }
 
@@ -304,6 +346,15 @@ impl ApplicationHandler<State> for App {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => state.resize(size.width, size.height),
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(KeyCode::Space),
+                        state: ElementState::Pressed, 
+                        ..
+                    },
+                ..
+            } => state.active_pipeline = 1 - state.active_pipeline,
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
