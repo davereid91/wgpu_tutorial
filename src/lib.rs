@@ -5,7 +5,7 @@ use wgpu::util::DeviceExt;
 use winit::{
     application::ApplicationHandler,
     event::*,
-    event_loop::{self, ActiveEventLoop, EventLoop},
+    event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
@@ -292,11 +292,11 @@ impl State {
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
                             r: 0.1
-                                + (self.cursor_position.0 as f64 / self.config.width as f64)
+                                + (self.cursor_position.0 / self.config.width as f64)
                                     .clamp(0.0, 1.0)
                                     * (1.0 - 0.1),
                             g: 0.1
-                                + (self.cursor_position.1 as f64 / self.config.height as f64)
+                                + (self.cursor_position.1 / self.config.height as f64)
                                     .clamp(0.0, 1.0)
                                     * (1.0 - 0.1),
                             b: 0.3,
@@ -325,10 +325,7 @@ impl State {
     }
 
     pub fn handle_key(&self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
-        match (code, is_pressed) {
-            (KeyCode::Escape, true) => event_loop.exit(),
-            _ => {}
-        }
+        if let (KeyCode::Escape, true) = (code, is_pressed) { event_loop.exit() }
     }
 
     fn update(&self) {}
@@ -338,6 +335,12 @@ pub struct App {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<winit::event_loop::EventLoopProxy<State>>,
     state: Option<State>,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl App {
@@ -402,7 +405,7 @@ impl ApplicationHandler<State> for App {
     }
 
     #[allow(unused_mut)]
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, mut event: State) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: State) {
         #[cfg(target_arch = "wasm32")]
         {
             event.window.request_redraw();
