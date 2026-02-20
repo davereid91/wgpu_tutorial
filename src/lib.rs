@@ -337,6 +337,7 @@ pub struct App {
     state: Option<State>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for App {
     fn default() -> Self {
         Self::new()
